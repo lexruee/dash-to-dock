@@ -78,6 +78,28 @@ const MyDashActor = new Lang.Class({
         this.actor.connect('allocate', Lang.bind(this, this._allocate));
 
         this.actor._delegate = this;
+
+        let alignment = 0.25;
+        if (this._isHorizontal)
+            alignment = 0.5;
+        // Popup menu
+        this.menu = new PopupMenu.PopupMenu(this.actor, alignment, this._position);
+        this.menu.actor.hide();
+        this.menu.actor.add_style_class_name('panel-menu');
+        let settingsMenuItem = new PopupMenu.PopupMenuItem('Dash to Dock ' + _('Settings'));
+        settingsMenuItem.connect('activate', Lang.bind(this, function() {
+            Util.spawn(['gnome-shell-extension-prefs', Me.metadata.uuid]);
+        }));
+        this.menu.addMenuItem(settingsMenuItem);
+
+        Main.uiGroup.add_actor(this.menu.actor);
+        this.menu.close();
+
+        this._menuManager = new PopupMenu.PopupMenuManager(this);
+        this._menuManager.addMenu(this.menu);
+
+        this.actor.reactive = true;
+        this.actor.connect('button-press-event', Lang.bind(this, this._rightClickMenu));
     },
 
     _allocate: function(actor, box, flags) {
@@ -154,6 +176,43 @@ const MyDashActor = new Lang.Class({
 
         alloc.min_size = minHeight;
         alloc.natural_size = natHeight;
+    },
+
+    _rightClickMenu: function(actor, event) {
+        let button = event.get_button();
+
+        if (button == 1) {
+            if (this.menu.isOpen)
+                this.menu.close();
+        }
+        else if (button == 3) {
+            if (this.menu.isOpen) {
+                this.menu.toggle();
+            }
+            else {
+                let monitor = this._dtdSettings.get_int('preferred-monitor');
+                if ((monitor <= 0) || (monitor > Main.layoutManager.monitors.length -1))
+                    monitor = Main.layoutManager.primaryIndex;
+
+                [x, y] = event.get_coords();
+                let coords, offset, size;
+
+                if (this._isHorizontal) {
+                    coords = x;
+                    offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).width - this.actor.width)/2;
+                    size = this.actor.width;
+                }
+                else {
+                    coords = y;
+                    offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).height - this.actor.height)/2
+                             + Main.layoutManager.getWorkAreaForMonitor(monitor).y; // This is the offset due to the top bar
+                    size = this.actor.height;
+                }
+
+                this.menu.setSourceAlignment((coords - offset) / size);
+                this.menu.toggle();
+            }
+        }
     }
 });
 
