@@ -178,39 +178,34 @@ const MyDashActor = new Lang.Class({
     },
 
     _rightClickMenu: function(actor, event) {
-        let button = event.get_button();
-
-        if (button == 1) {
-            if (this.menu.isOpen)
-                this.menu.close();
+        if (this.menu.isOpen) {
+            this.menu.toggle();
+            return;
         }
-        else if (button == 3) {
-            if (this.menu.isOpen) {
-                this.menu.toggle();
+
+        let button = event.get_button();
+        if (button == 3) {
+            let monitor = this._dtdSettings.get_int('preferred-monitor');
+            if ((monitor <= 0) || (monitor > Main.layoutManager.monitors.length -1))
+                monitor = Main.layoutManager.primaryIndex;
+
+            [x, y] = event.get_coords();
+            let coords, offset, size;
+
+            if (this._isHorizontal) {
+                coords = x;
+                offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).width - this.actor.width)/2;
+                size = this.actor.width;
             }
             else {
-                let monitor = this._dtdSettings.get_int('preferred-monitor');
-                if ((monitor <= 0) || (monitor > Main.layoutManager.monitors.length -1))
-                    monitor = Main.layoutManager.primaryIndex;
-
-                [x, y] = event.get_coords();
-                let coords, offset, size;
-
-                if (this._isHorizontal) {
-                    coords = x;
-                    offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).width - this.actor.width)/2;
-                    size = this.actor.width;
-                }
-                else {
-                    coords = y;
-                    offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).height - this.actor.height)/2
-                             + Main.layoutManager.getWorkAreaForMonitor(monitor).y; // This is the offset due to the top bar
-                    size = this.actor.height;
-                }
-
-                this.menu.setSourceAlignment((coords - offset) / size);
-                this.menu.toggle();
+                coords = y;
+                offset = (Main.layoutManager.getWorkAreaForMonitor(monitor).height - this.actor.height)/2
+                         + Main.layoutManager.getWorkAreaForMonitor(monitor).y; // This is the offset due to the top bar
+                size = this.actor.height;
             }
+
+            this.menu.setSourceAlignment((coords - offset) / size);
+            this.menu.toggle();
         }
     }
 });
