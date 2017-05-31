@@ -41,6 +41,7 @@ const ThemeManager = new Lang.Class({
         // initialize colors with generic values
         this._customizedBackground = {red: 0, green: 0, blue: 0, alpha: 0};
         this._customizedBorder = {red: 0, green: 0, blue: 0, alpha: 0};
+        this._transparency = new Transparency(this._settings, this._dash, this._actor);
 
         this._signalsHandler.add([
             // When theme changes re-obtain default background color
@@ -68,6 +69,7 @@ const ThemeManager = new Lang.Class({
 
     destroy: function() {
         this._signalsHandler.destroy();
+        this._transparency.destroy();
     },
 
     _onOverviewShowing: function() {
@@ -94,6 +96,9 @@ const ThemeManager = new Lang.Class({
         // The border and background alphas should remain in sync
         // We also limit the borderAlpha to a maximum of 1 (full opacity)
         borderAlpha = Math.min((borderAlpha/backgroundAlpha)*newAlpha, 1);
+
+        // We need to send the original border alpha to the transparency class
+        this._transparency.setAlpha(newAlpha, borderAlpha, Math.round(borderColor.alpha/2.55)/100);
 
         this._customizedBackground = 'rgba(' +
             backgroundColor.red + ',' +
@@ -139,25 +144,26 @@ const ThemeManager = new Lang.Class({
     },
 
     _updateDashColor: function() {
+        let [backgroundColor, borderColor] = this._getDefaultColors();
+
+        if (backgroundColor==null)
+            return;
+
         if (this._settings.get_boolean('custom-background-color')) {
-            let [backgroundColor, borderColor] = this._getDefaultColors();
-
-            if (backgroundColor==null)
-              return;
-
             let newAlpha = Math.round(backgroundColor.alpha/2.55)/100;
             if (this._settings.get_boolean('opaque-background'))
                 newAlpha = this._settings.get_double('background-opacity');
 
-            let newColor = Clutter.color_from_string(this._settings.get_string('background-color'))[1];
+            backgroundColor = Clutter.color_from_string(this._settings.get_string('background-color'))[1];
             this._customizedBackground = 'rgba(' +
-                newColor.red + ',' +
-                newColor.green + ',' +
-                newColor.blue + ',' +
+                backgroundColor.red + ',' +
+                backgroundColor.green + ',' +
+                backgroundColor.blue + ',' +
                 newAlpha + ')';
 
             this._customizedBorder = this._customizedBackground;
         }
+        this._transparency.setColor(backgroundColor);
     },
 
     _updateCustomStyleClasses: function() {
@@ -206,6 +212,7 @@ const ThemeManager = new Lang.Class({
 
         // Remove prior style edits
         this._dash._container.set_style(null);
+        this._transparency.disable();
 
         // If built-in theme is enabled do nothing else
         if (this._settings.get_boolean('apply-custom-theme'))
@@ -263,16 +270,21 @@ const ThemeManager = new Lang.Class({
         }
 
         // Customize background
-        if (this._settings.get_boolean('opaque-background') || this._settings.get_boolean('custom-background-color')) {
+        if (this._settings.get_boolean('opaque-background') && this._settings.get_boolean('dynamic-opaque-background')) {
+            this._transparency.enable();
+        }
+        else if (this._settings.get_boolean('opaque-background') || this._settings.get_boolean('custom-background-color')) {
             newStyle = newStyle + 'background-color:'+ this._customizedBackground + '; ' +
                        'border-color:'+ this._customizedBorder + '; ' +
                        'transition-delay: 0s; transition-duration: 0.250s;';
             this._dash._container.set_style(newStyle);
+            this._transparency.disable();
         }
     },
 
     _bindSettingsChanges: function() {
         let keys = ['opaque-background',
+                    'dynamic-opaque-background',
                     'background-opacity',
                     'custom-background-color',
                     'background-color',
@@ -289,5 +301,166 @@ const ThemeManager = new Lang.Class({
                 Lang.bind(this, this.updateCustomTheme)
            ]);
         }, this);
+    }
+});
+
+/**
+ * The following class is based on the following upstream commit:
+ * https://git.gnome.org/browse/gnome-shell/commit/?id=447bf55e45b00426ed908b1b1035f472c2466956
+ * Transparency when free-floating
+ */
+const Transparency = new Lang.Class({
+    Name: 'DashToDock.Transparency',
+
+    _init: function(settings, dash, dockActor) {
+        this._settings = settings;
+        this._actor = dash._container;
+        this._dash = dash;
+        this._dockActor = dockActor;
+        this._position = Utils.getPosition(this._settings);
+
+        this._backgroundColor = '0,0,0';
+        this._alpha = '1';
+        this._borderAlpha = '1';
+        this._originalBorderAlpha = '1';
+        this._updateStyles();
+
+        this._signalsHandler = new Utils.GlobalSignalsHandler();
+        this._trackedWindows = new Map();
+    },
+
+    enable: function() {
+        // ensure I never double-register/inject
+        // although it should never happen
+        this.disable();
+
+        this._signalsHandler.addWithLabel('transparency', [
+            global.window_group,
+            'actor-added',
+            Lang.bind(this, this._onWindowActorAdded)
+        ], [
+            global.window_group,
+            'actor-removed',
+            Lang.bind(this, this._onWindowActorRemoved)
+        ], [
+            global.window_manager,
+            'switch-workspace',
+            Lang.bind(this, this._updateSolidStyle)
+        ]);
+
+        // Window signals
+        global.get_window_actors().forEach(function(win) {
+            this._addWindowSignals(win);
+        }, this);
+
+        if (this._actor.get_stage())
+            this._updateSolidStyle();
+    },
+
+    disable: function() {
+        // ensure I never double-register/inject
+        // although it should never happen
+        this._signalsHandler.removeWithLabel('transparency');
+
+        for (let key of this._trackedWindows.keys())
+            key.disconnect(this._trackedWindows.get(key));
+        this._trackedWindows.clear();
+    },
+
+    destroy: function() {
+        this.disable();
+        this._signalsHandler.destroy();
+    },
+
+    _addWindowSignals: function(metaWindowActor) {
+        let signalId = metaWindowActor.connect('allocation-changed', Lang.bind(this, this._updateSolidStyle));
+        this._trackedWindows.set(metaWindowActor, signalId);
+    },
+
+    _onWindowActorAdded: function(container, metaWindowActor) {
+        this._addWindowSignals(metaWindowActor);
+    },
+
+    _onWindowActorRemoved: function(container, metaWindowActor) {
+        metaWindowActor.disconnect(this._trackedWindows.get(metaWindowActor));
+        this._trackedWindows.delete(metaWindowActor);
+        this._updateSolidStyle();
+    },
+
+    _updateSolidStyle: function() {
+        if (this._dockActor.has_style_pseudo_class('overview'))
+             return;
+        /* Get all the windows in the active workspace that are in the primary monitor and visible */
+        let activeWorkspace = global.screen.get_active_workspace();
+        let dash = this._dash;
+        let windows = activeWorkspace.list_windows().filter(function(metaWindow) {
+            return metaWindow.get_monitor() === dash._monitorIndex &&
+                   metaWindow.showing_on_its_workspace() &&
+                   metaWindow.get_window_type() != Meta.WindowType.DESKTOP;
+        });
+
+        /* Check if at least one window is near enough to the panel */
+        let [leftCoord, topCoord] = this._actor.get_transformed_position();
+        let threshold;
+        if (this._position === St.Side.LEFT)
+            threshold = leftCoord + this._actor.get_width();
+        else if (this._position === St.Side.RIGHT)
+            threshold = leftCoord;
+        else if (this._position === St.Side.TOP)
+            threshold = topCoord + this._actor.get_height();
+        else
+            threshold = topCoord;
+
+        let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        let isNearEnough = windows.some(Lang.bind(this, function(metaWindow) {
+            let coord;
+            if (this._position === St.Side.LEFT) {
+                coord = metaWindow.get_frame_rect().x;
+                return coord < threshold + 5 * scale;
+            }
+            else if (this._position === St.Side.RIGHT) {
+                coord = metaWindow.get_frame_rect().x + metaWindow.get_frame_rect().width;
+                return coord > threshold - 5 * scale;
+            }
+            else if (this._position === St.Side.TOP) {
+                coord = metaWindow.get_frame_rect().y;
+                return coord < threshold + 5 * scale;
+            }
+            else {
+                coord = metaWindow.get_frame_rect().y + metaWindow.get_frame_rect().height;
+                return coord > threshold - 5 * scale;
+            }
+        }));
+
+        if (isNearEnough)
+            this._actor.set_style(this._opaque_style);
+        else
+            this._actor.set_style(this._transparent_style);
+    },
+
+    _updateStyles: function() {
+        this._transparent_style = 'background-color: rgba(' +
+                                  this._backgroundColor + ',' + this._alpha + ');' +
+                                  'border-color: rgba(' +
+                                  this._backgroundColor + ',' + this._borderAlpha + ');' +
+                                  'transition-duration: 500ms;';
+        this._opaque_style = 'background-color: rgba(' +
+                             this._backgroundColor + ',' + '1);' +
+                             'border-color: rgba(' +
+                             this._backgroundColor + ',' + this._originalBorderAlpha + ');' +
+                             'transition-duration: 300ms;';
+    },
+
+    setColor: function(color) {
+        this._backgroundColor = color.red + ',' + color.green + ',' + color.blue;
+        this._updateStyles();
+    },
+
+    setAlpha: function(alpha, borderAlpha, originalBorderAlpha) {
+        this._alpha = alpha.toString();
+        borderAlpha = Math.round(borderAlpha*100)/100;
+        this._borderAlpha = borderAlpha.toString();
+        this._originalBorderAlpha = originalBorderAlpha.toString();
+        this._updateStyles();
     }
 });

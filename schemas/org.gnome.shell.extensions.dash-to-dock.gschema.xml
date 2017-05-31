@@ -58,6 +58,11 @@
       <summary>Dash background color.</summary>
       <description>Customize the background color of the dash.</description>
     </key>
+    <key type="b" name="dynamic-opaque-background">
+      <default>true</default>
+      <summary>Dash background is opaque when windows are close to it</summary>
+      <description>Makes the background of the dash opaque when the dock is not free floating.</description>
+    </key>
     <key type="b" name="opaque-background">
       <default>false</default>
       <summary>Dash background is opaque</summary>
