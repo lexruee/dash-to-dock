@@ -286,6 +286,16 @@ const MyDash = new Lang.Class({
 
         this._container.add_actor(this._showAppsIcon);
 
+        // When opening the right click menu, deactivate reactiveness of icons.
+        this._containerObject.menu.connect('open-state-changed', Lang.bind(this, function() {
+            let reactiveness = !this._containerObject.menu.isOpen;
+            let appIcons = this._getAppIcons();
+            appIcons.forEach(function(icon) {
+                icon.actor.reactive = reactiveness;
+            });
+            this._showAppsIcon.actor.reactive = reactiveness;
+        }));
+
         let rtl = Clutter.get_default_text_direction() == Clutter.TextDirection.RTL;
         this.actor = new St.Bin({
             child: this._container,
@@ -601,10 +611,6 @@ const MyDash = new Lang.Class({
             }
 
             item.hideLabel();
-
-            // We need to close the dash menu if it's open
-            if (this._containerObject.menu.isOpen)
-                this._containerObject.menu.toggle();
         }
         else {
             // I want to listen from outside when a menu is closed. I used to
