@@ -326,7 +326,7 @@ const MyAppIcon = new Lang.Class({
             this.app.state !== Shell.AppState.STOPPED &&
             this._dtdSettings.get_boolean('unity-backlit-items') === true &&
             this._dtdSettings.get_boolean('apply-custom-theme') === false &&
-            getInterestingWindows(this.app, this._dtdSettings).length > 0
+            this.getInterestingWindows().length > 0
         ) {
             this._enableBacklight();
             
@@ -1601,13 +1601,6 @@ function unifyScrollDirection(scrollEvent) {
 			break;
 		case Clutter.ScrollDirection.DOWN:
 			direction = Meta.MotionDirection.DOWN;
-			break;
-		case Clutter.ScrollDirection.SMOOTH:
-			let [dx, dy] = scrollEvent.get_scroll_delta();
-			if (dy < 0)
-				direction = Meta.MotionDirection.UP;
-			else if (dy > 0)
-				direction = Meta.MotionDirection.DOWN;
 			break;
 	}
 	return direction;
