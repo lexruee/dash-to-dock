@@ -424,7 +424,10 @@ const DockedDash = new Lang.Class({
             this._paintId=0;
         }
 
-        this.dash.setIconSize(this._settings.get_int('dash-max-icon-size'), true);
+        let relativeSize = 1./40.;
+        let iconSize = this._settings.get_int('dash-max-icon-size');
+        iconSize = Math.round(this._monitor.width * relativeSize);
+        this.dash.setIconSize(iconSize, true);
 
         // Apply custome css class according to the settings
         this._themeManager.updateCustomTheme();
