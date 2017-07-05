@@ -330,6 +330,10 @@ const Settings = new Lang.Class({
                             this._builder.get_object('show_favorite_switch'),
                             'active',
                             Gio.SettingsBindFlags.DEFAULT);
+        this._settings.bind('favorites-only-on-main',
+                            this._builder.get_object('favorites_only_on_main'),
+                            'active',
+                            Gio.SettingsBindFlags.DEFAULT);
         this._settings.bind('show-show-apps-button',
                             this._builder.get_object('show_applications_button_switch'),
                             'active',

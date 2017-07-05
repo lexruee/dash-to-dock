@@ -178,6 +178,11 @@
       <summary>Show favorites apps</summary>
       <description>Show or hide favorite appplications icons in the dash</description>
     </key>
+    <key type="b" name="favorites-only-on-main">
+      <default>false</default>
+      <summary>Show favorites apps only on the main monitor</summary>
+      <description>Hides favorite appplications icons if the dash is not on the main monitor.</description>
+    </key>
     <key type="b" name="show-show-apps-button">
       <default>true</default>
       <summary>Show applications button</summary>
