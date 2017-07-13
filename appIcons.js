@@ -342,6 +342,10 @@ const MyAppIcon = new Lang.Class({
                     this._menu.actor.style = ('max-height: ' + Math.round(workArea.height - additional_margin - verticalMargins) + 'px;' +
                                               'max-width: 400px');
                 }
+
+                // Close the window previews
+                if (this._previewMenu && this._previewMenu.isOpen)
+                    this._previewMenu.close(~0);
             }));
             let id = Main.overview.connect('hiding', Lang.bind(this, function() {
                 this._menu.close();
@@ -373,7 +377,6 @@ const MyAppIcon = new Lang.Class({
     },
 
     activate: function(button) {
-
         if (!this._dtdSettings.get_boolean('customize-click')) {
             this.parent(button);
             return;
@@ -422,6 +425,8 @@ const MyAppIcon = new Lang.Class({
         // Some action modes (e.g. MINIMIZE_OR_OVERVIEW) require overview to remain open
         // This variable keeps track of this
         let shouldHideOverview = true;
+
+        let shouldClosePreview = true;
 
         // We customize the action only when the application is already running
         if (appIsRunning) {
@@ -496,8 +501,11 @@ const MyAppIcon = new Lang.Class({
                     if (windows.length == 1 && !modifiers && button == 1) {
                         let w = windows[0];
                         Main.activateWindow(w);
-                    } else
+                    }
+                    else {
                         this._windowPreviews();
+                        shouldClosePreview = false;
+                    }
                 }
                 else {
                     this.app.activate();
@@ -517,6 +525,9 @@ const MyAppIcon = new Lang.Class({
         else {
             this.launchNewWindow();
         }
+
+        if (this._previewMenu && this._previewMenu.isOpen && shouldClosePreview)
+            this._previewMenu.hoverClose(~0);
 
         // Hide overview except when action mode requires it
         if(shouldHideOverview) {
