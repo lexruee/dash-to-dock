@@ -299,6 +299,10 @@ const MyDash = new Lang.Class({
             Main.overview,
             'item-drag-cancelled',
             Lang.bind(this, this._onDragCancelled)
+        ], [
+            this._dtdSettings,
+            'changed::show-previews-hover',
+            Lang.bind(this, this._togglePreviewHover)
         ]);
     },
 
@@ -510,6 +514,27 @@ const MyDash = new Lang.Class({
         this._hookUpLabel(item, appIcon);
 
         return item;
+    },
+
+    _togglePreviewHover: function() {
+        if (this._dtdSettings.get_boolean('show-previews-hover'))
+            this._enableHover();
+        else
+            this._disableHover();
+    },
+
+    _enableHover: function() {
+        let appIcons = this._getAppIcons();
+        appIcons.forEach(function (appIcon) {
+            appIcon.enableHover(appIcons);
+        });
+    },
+
+    _disableHover: function() {
+        let appIcons = this._getAppIcons();
+        appIcons.forEach(function (appIcon) {
+            appIcon.disableHover();
+        });
     },
 
     /**
@@ -866,6 +891,9 @@ const MyDash = new Lang.Class({
 
         // This will update the size, and the corresponding number for each icon
         this._updateNumberOverlay();
+
+        // Connect windows previews to hover events
+        this._togglePreviewHover();
     },
 
     _updateNumberOverlay: function() {
