@@ -709,5 +709,10 @@
       <summary>Force straight corners in dash</summary>
       <description>Make the borders in the dash non rounded</description>
     </key>
+    <key name="show-previews-hover" type="b">
+      <default>false</default>
+      <summary>Show window previews on mouse hover</summary>
+      <description></description>
+    </key>
   </schema>
 </schemalist>
