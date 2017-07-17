@@ -151,6 +151,8 @@ const WindowPreviewMenu = new Lang.Class({
                     this.close(~0);
                 })
             });
+            if (!this.actor.has_key_focus())
+                this.actor.grab_key_focus();
         }
 
         this._hoverCloseTimeoutId = Mainloop.timeout_add(
