@@ -350,7 +350,8 @@ const Transparency = new Lang.Class({
 
         // Window signals
         global.get_window_actors().forEach(function(win) {
-            this._addWindowSignals(win);
+            if (win.get_meta_window().get_wm_class() !== 'Gnome-shell')
+                this._addWindowSignals(win);
         }, this);
 
         if (this._actor.get_stage())
