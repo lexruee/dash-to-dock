@@ -2,8 +2,8 @@
 
 UUID = dash-to-dock@micxgx.gmail.com
 BASE_MODULES = extension.js stylesheet.css metadata.json COPYING README.md
-EXTRA_MODULES = convenience.js dash.js docking.js appIcons.js windowPreview.js intellihide.js prefs.js theming.js utils.js Settings.ui
-EXTRA_MEDIA = logo.svg
+EXTRA_MODULES = convenience.js dash.js docking.js appIcons.js windowPreview.js appExposeOverview.js intellihide.js prefs.js theming.js utils.js Settings.ui
+EXTRA_MEDIA = logo.svg glossy.svg
 TOLOCALIZE =  prefs.js appIcons.js
 MSGSRC = $(wildcard po/*.po)
 ifeq ($(strip $(DESTDIR)),)

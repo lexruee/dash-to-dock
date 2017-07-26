@@ -58,6 +58,11 @@
       <summary>Dash background color.</summary>
       <description>Customize the background color of the dash.</description>
     </key>
+    <key type="b" name="dynamic-opaque-background">
+      <default>true</default>
+      <summary>Dash background is opaque when windows are close to it</summary>
+      <description>Makes the background of the dash opaque when the dock is not free floating.</description>
+    </key>
     <key type="b" name="opaque-background">
       <default>false</default>
       <summary>Dash background is opaque</summary>
@@ -177,6 +182,11 @@
       <default>true</default>
       <summary>Show favorites apps</summary>
       <description>Show or hide favorite appplications icons in the dash</description>
+    </key>
+    <key type="b" name="favorites-only-on-main">
+      <default>false</default>
+      <summary>Show favorites apps only on the main monitor</summary>
+      <description>Hides favorite appplications icons if the dash is not on the main monitor.</description>
     </key>
     <key type="b" name="show-show-apps-button">
       <default>true</default>
@@ -703,6 +713,11 @@
       <default>false</default>
       <summary>Force straight corners in dash</summary>
       <description>Make the borders in the dash non rounded</description>
+    </key>
+    <key name="unity-backlit-items" type="b">
+      <default>false</default>
+      <summary>Enable unity7 like glossy backlit items</summary>
+      <description>Emulate the unity7 backlit glossy items behaviour</description>
     </key>
   </schema>
 </schemalist>

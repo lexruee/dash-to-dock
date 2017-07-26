@@ -273,6 +273,9 @@ const DockedDash = new Lang.Class({
         });
         this._box.connect('notify::hover', Lang.bind(this, this._hoverChanged));
 
+        // This is for the menu to access the settings with right-click
+        this.dash._containerObject.menu.connect('menu-closed', Lang.bind(this, this._hoverChanged))
+
         // Create and apply height constraint to the dash. It's controlled by this.actor height
         this.constrainSize = new Clutter.BindConstraint({
             source: this.actor,
@@ -509,6 +512,12 @@ const DockedDash = new Lang.Class({
             })
         ], [
             this._settings,
+            'changed::favorites-only-on-main',
+            Lang.bind(this, function() {
+                    this.dash.resetAppIcons();
+            })
+        ], [
+            this._settings,
             'changed::show-running',
             Lang.bind(this, function() {
                     this.dash.resetAppIcons();
@@ -684,6 +693,10 @@ const DockedDash = new Lang.Class({
     },
 
     _hoverChanged: function() {
+        if (this.dash._containerObject.menu.isOpen) {
+            return;
+        }
+
         if (!this._ignoreHover) {
             // Skip if dock is not in autohide mode for instance because it is shown
             // by intellihide.

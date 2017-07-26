@@ -55,9 +55,10 @@ function extendDashItemContainer(dashItemContainer, settings) {
 const MyDashActor = new Lang.Class({
     Name: 'DashToDock.MyDashActor',
 
-    _init: function(settings) {
+    _init: function(settings, monitorIndex) {
         // a prefix is required to avoid conflicting with the parent class variable
         this._dtdSettings = settings;
+        this._monitorIndex = monitorIndex;
         this._rtl = (Clutter.get_default_text_direction() == Clutter.TextDirection.RTL);
 
         this._position = Utils.getPosition(settings);
@@ -78,6 +79,27 @@ const MyDashActor = new Lang.Class({
         this.actor.connect('allocate', Lang.bind(this, this._allocate));
 
         this.actor._delegate = this;
+
+        let alignment = 0.25;
+        if (this._isHorizontal)
+            alignment = 0.5;
+        // Popup menu
+        this.menu = new PopupMenu.PopupMenu(this.actor, alignment, this._position);
+        this.menu.actor.hide();
+        let settingsMenuItem = new PopupMenu.PopupMenuItem('Dash to Dock ' + _('Settings'));
+        settingsMenuItem.connect('activate', Lang.bind(this, function() {
+            Util.spawn(['gnome-shell-extension-prefs', Me.metadata.uuid]);
+        }));
+        this.menu.addMenuItem(settingsMenuItem);
+
+        Main.uiGroup.add_actor(this.menu.actor);
+        this.menu.close();
+
+        this._menuManager = new PopupMenu.PopupMenuManager(this);
+        this._menuManager.addMenu(this.menu);
+
+        this.actor.reactive = true;
+        this.actor.connect('button-press-event', Lang.bind(this, this._rightClickMenu));
     },
 
     _allocate: function(actor, box, flags) {
@@ -154,6 +176,34 @@ const MyDashActor = new Lang.Class({
 
         alloc.min_size = minHeight;
         alloc.natural_size = natHeight;
+    },
+
+    _rightClickMenu: function(actor, event) {
+        if (this.menu.isOpen) {
+            this.menu.toggle();
+            return;
+        }
+
+        let button = event.get_button();
+        if (button == 3) {
+            [x, y] = event.get_coords();
+            let coords, offset, size;
+
+            if (this._isHorizontal) {
+                coords = x;
+                offset = (Main.layoutManager.getWorkAreaForMonitor(this._monitorIndex).width - this.actor.width)/2;
+                size = this.actor.width;
+            }
+            else {
+                coords = y;
+                offset = (Main.layoutManager.getWorkAreaForMonitor(this._monitorIndex).height - this.actor.height)/2
+                         + Main.layoutManager.getWorkAreaForMonitor(this._monitorIndex).y; // This is the offset due to the top bar
+                size = this.actor.height;
+            }
+
+            this.menu.setSourceAlignment((coords - offset) / size);
+            this.menu.toggle();
+        }
     }
 });
 
@@ -199,7 +249,7 @@ const MyDash = new Lang.Class({
         this._ensureAppIconVisibilityTimeoutId = 0;
         this._labelShowing = false;
 
-        this._containerObject = new MyDashActor(settings);
+        this._containerObject = new MyDashActor(settings, this._monitorIndex);
         this._container = this._containerObject.actor;
         this._scrollView = new St.ScrollView({
             name: 'dashtodockDashScrollview',
@@ -235,6 +285,16 @@ const MyDash = new Lang.Class({
         this.showAppsButton = this._showAppsIcon.toggleButton;
 
         this._container.add_actor(this._showAppsIcon);
+
+        // When opening the right click menu, deactivate reactiveness of icons.
+        this._containerObject.menu.connect('open-state-changed', Lang.bind(this, function() {
+            let reactiveness = !this._containerObject.menu.isOpen;
+            let appIcons = this._getAppIcons();
+            appIcons.forEach(function(icon) {
+                icon.actor.reactive = reactiveness;
+            });
+            this._showAppsIcon.actor.reactive = reactiveness;
+        }));
 
         let rtl = Clutter.get_default_text_direction() == Clutter.TextDirection.RTL;
         this.actor = new St.Bin({
@@ -729,7 +789,11 @@ const MyDash = new Lang.Class({
         // Apps supposed to be in the dash
         let newApps = [];
 
-        if (this._dtdSettings.get_boolean('show-favorites')) {
+        let only_on_main_monitor = true;
+        if (this._dtdSettings.get_boolean('favorites-only-on-main'))
+            only_on_main_monitor = this._monitorIndex == Main.layoutManager.primaryIndex;
+
+        if (this._dtdSettings.get_boolean('show-favorites') && only_on_main_monitor) {
             for (let id in favorites)
                 newApps.push(favorites[id]);
         }
@@ -742,7 +806,7 @@ const MyDash = new Lang.Class({
                 let index = running.indexOf(oldApps[i]);
                 if (index > -1) {
                     let app = running.splice(index, 1)[0];
-                    if (this._dtdSettings.get_boolean('show-favorites') && (app.get_id() in favorites))
+                    if (this._dtdSettings.get_boolean('show-favorites') && only_on_main_monitor && (app.get_id() in favorites))
                         continue;
                     newApps.push(app);
                 }
@@ -750,7 +814,7 @@ const MyDash = new Lang.Class({
             // Second: add the new apps
             for (let i = 0; i < running.length; i++) {
                 let app = running[i];
-                if (this._dtdSettings.get_boolean('show-favorites') && (app.get_id() in favorites))
+                if (this._dtdSettings.get_boolean('show-favorites') && only_on_main_monitor && (app.get_id() in favorites))
                     continue;
                 newApps.push(app);
             }

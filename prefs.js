@@ -330,6 +330,10 @@ const Settings = new Lang.Class({
                             this._builder.get_object('show_favorite_switch'),
                             'active',
                             Gio.SettingsBindFlags.DEFAULT);
+        this._settings.bind('favorites-only-on-main',
+                            this._builder.get_object('favorites_only_on_main'),
+                            'active',
+                            Gio.SettingsBindFlags.DEFAULT);
         this._settings.bind('show-show-apps-button',
                             this._builder.get_object('show_applications_button_switch'),
                             'active',
@@ -584,8 +588,15 @@ const Settings = new Lang.Class({
         }));
 
         this._settings.bind('opaque-background', this._builder.get_object('customize_opacity_switch'), 'active', Gio.SettingsBindFlags.DEFAULT);
+        this._settings.bind('dynamic-opaque-background', this._builder.get_object('dynamic_opacity_checkbutton'), 'active', Gio.SettingsBindFlags.DEFAULT);
+        this._settings.bind('opaque-background', this._builder.get_object('dynamic_opacity_checkbutton'), 'sensitive', Gio.SettingsBindFlags.DEFAULT);
         this._builder.get_object('custom_opacity_scale').set_value(this._settings.get_double('background-opacity'));
         this._settings.bind('opaque-background', this._builder.get_object('custom_opacity'), 'sensitive', Gio.SettingsBindFlags.DEFAULT);
+
+        this._settings.bind('unity-backlit-items',
+            this._builder.get_object('unity_backlit_items_switch'),
+            'active', Gio.SettingsBindFlags.DEFAULT
+        );
 
         this._settings.bind('force-straight-corner',
             this._builder.get_object('force_straight_corner_switch'),
