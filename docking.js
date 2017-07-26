@@ -367,6 +367,7 @@ const DockedDash = new Lang.Class({
         // sync hover after a popupmenu is closed
         this.dash.connect('menu-closed', Lang.bind(this, function() {
             this._box.sync_hover();
+            this._hoverChanged();
         }));
 
         // Load optional features that need to be activated for one dock only
@@ -697,7 +698,13 @@ const DockedDash = new Lang.Class({
             return;
         }
 
-        if (!this._ignoreHover) {
+        let dontClose = false;
+        this.dash._getAppIcons().forEach(function(appIcon) {
+            if (appIcon._previewMenu && appIcon._previewMenu.isOpen)
+                dontClose = true;
+        });
+
+        if (!this._ignoreHover && !dontClose) {
             // Skip if dock is not in autohide mode for instance because it is shown
             // by intellihide.
             if (this._autohideIsEnabled) {
